@@ -1,6 +1,8 @@
-﻿<?php
+﻿
+<?php
 
 namespace App\Http\Controllers;
+
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,9 +11,33 @@ use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
-    public function showLogin() { return view('auth.login'); }
-    public function showRegister() { return view('auth.register'); }
-    public function showForgotPassword() { return view('auth.forgot-password'); }
+    /**
+     * Halaman login
+     */
+    public function showLogin()
+    {
+        return view('auth.login');
+    }
+
+    /**
+     * Halaman registrasi
+     */
+    public function showRegister()
+    {
+        return view('auth.register');
+    }
+
+    /**
+     * Halaman lupa password
+     */
+    public function showForgotPassword()
+    {
+        return view('auth.forgot-password');
+    }
+
+    /**
+     * Proses login
+     */
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -19,50 +45,132 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (Auth::attempt(
+            $credentials,
+            $request->boolean('remember')
+        )) {
+
             $request->session()->regenerate();
-            $destination = match (auth()->user()->role) {
-                'admin' => route('admin.dashboard'),
-                'penyelenggara' => route('organizer.dashboard'),
-                default => route('dashboard'),
+
+            $user = Auth::user();
+
+            // Arahkan berdasarkan role
+            $destination = match ($user->role) {
+                'admin' => 'admin.dashboard',
+                'penyelenggara' => 'organizer.dashboard',
+                'mahasiswa' => 'dashboard',
+                default => 'dashboard',
             };
-            return redirect()->intended($destination)->with('success', 'Berhasil login. Selamat datang di AJARA!');
+
+            return redirect()
+                ->route($destination)
+                ->with(
+                    'success',
+                    'Berhasil login. Selamat datang di AJARA!'
+                );
         }
 
-        return back()->withErrors(['email' => 'Email atau password tidak sesuai.'])->onlyInput('email');
+        return back()
+            ->withErrors([
+                'email' => 'Email atau password tidak sesuai.',
+            ])
+            ->onlyInput('email');
     }
 
+    /**
+     * Proses registrasi akun
+     */
     public function register(Request $request)
     {
+        // Default role adalah mahasiswa
+        $request->merge([
+            'role' => $request->input('role') ?: 'mahasiswa',
+        ]);
+
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'nim' => ['nullable', 'required_if:role,mahasiswa', 'string', 'max:30', 'unique:users,nim'],
-            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::min(8)],
-            'role' => ['nullable', 'in:mahasiswa,penyelenggara'],
+
+            'name' => [
+                'required',
+                'string',
+                'max:120',
+            ],
+
+            'nim' => [
+                'nullable',
+                'required_if:role,mahasiswa',
+                'string',
+                'max:30',
+                'unique:users,nim',
+            ],
+
+            'email' => [
+                'required',
+                'email',
+                'max:150',
+                'unique:users,email',
+            ],
+
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(8),
+            ],
+
+            'role' => [
+                'required',
+                'in:mahasiswa,penyelenggara',
+            ],
         ]);
 
+        // Membuat akun baru
         $user = User::create([
+
             'name' => $data['name'],
-            'nim' => $data['nim'],
+
+            'nim' => $data['nim'] ?? null,
+
             'email' => $data['email'],
+
             'password' => Hash::make($data['password']),
-            'role' => $data['role'] ?? 'mahasiswa',
+
+            'role' => $data['role'],
+
         ]);
 
+        // Login otomatis setelah registrasi
         Auth::login($user);
+
         $request->session()->regenerate();
 
-        $destination = $user->role === 'penyelenggara' ? 'organizer.dashboard' : 'dashboard';
-        return redirect()->route($destination)->with('success', 'Akun AJARA berhasil dibuat.');
+        // Redirect sesuai role
+        $destination = $user->role === 'penyelenggara'
+            ? 'organizer.dashboard'
+            : 'dashboard';
+
+        return redirect()
+            ->route($destination)
+            ->with(
+                'success',
+                'Akun AJARA berhasil dibuat. Selamat bergabung!'
+            );
     }
 
+    /**
+     * Proses logout
+     */
     public function logout(Request $request)
     {
         Auth::logout();
+
         $request->session()->invalidate();
+
         $request->session()->regenerateToken();
-        return redirect()->route('welcome');
+
+        return redirect()
+            ->route('welcome')
+            ->with(
+                'success',
+                'Kamu berhasil logout dari AJARA.'
+            );
     }
 }
-
