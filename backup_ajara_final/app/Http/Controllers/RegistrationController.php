@@ -1,0 +1,7 @@
+<?php
+namespace App\Http\Controllers;
+use App\Models\Competition; use Illuminate\Http\Request;
+class RegistrationController extends Controller {
+ public function create(Competition $competition){abort_unless($competition->status==='published',404);return view('competitions.register',compact('competition'));}
+ public function store(Request $request,Competition $competition){abort_unless($competition->status==='published',404);$d=$request->validate(['phone'=>'required|string|max:30','university'=>'required|string|max:180','study_program'=>'required|string|max:150','participant_type'=>'required|in:Individu,Tim','team_name'=>'nullable|required_if:participant_type,Tim|string|max:150','members'=>'nullable|string|max:3000','document'=>'nullable|file|mimes:pdf,doc,docx,zip,jpg,jpeg,png|max:10240','agreement'=>'accepted']);if(auth()->user()->registrations()->where('competition_id',$competition->id)->exists())return back()->withErrors(['registration'=>'Kamu sudah mendaftar lomba ini.'])->withInput();$path=$request->file('document')?->store('registration-documents','public');auth()->user()->registrations()->create(['competition_id'=>$competition->id,'status'=>'pending','phone'=>$d['phone'],'university'=>$d['university'],'study_program'=>$d['study_program'],'participant_type'=>$d['participant_type'],'team_name'=>$d['team_name']??null,'members'=>$d['members']??null,'document_path'=>$path]);return redirect()->route('dashboard')->with('success','Pendaftaran berhasil dikirim dan menunggu verifikasi panitia.');}
+}

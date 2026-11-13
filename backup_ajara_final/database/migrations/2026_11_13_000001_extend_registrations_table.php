@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up():void { Schema::table('registrations',function(Blueprint $t){$t->string('phone',30)->nullable();$t->string('university')->nullable();$t->string('study_program')->nullable();$t->string('participant_type')->default('Individu');$t->string('team_name')->nullable();$t->text('members')->nullable();$t->string('document_path')->nullable();});} public function down():void {Schema::table('registrations',function(Blueprint $t){$t->dropColumn(['phone','university','study_program','participant_type','team_name','members','document_path']);});}};
